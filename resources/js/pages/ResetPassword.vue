@@ -7,15 +7,22 @@ import { useForm } from '../lib/api';
 
 const props = defineProps({
     shared: { type: Object, required: true },
+    token: { type: String, required: true },
+    email: { type: String, default: '' },
 });
 
-const form = useForm({ email: '', password: '', remember: false });
+const form = useForm({
+    token: props.token,
+    email: props.email,
+    password: '',
+    password_confirmation: '',
+});
 
-const submit = () => form.submit(props.shared.api.login, props.shared.csrfToken);
+const submit = () => form.submit(props.shared.api.passwordUpdate, props.shared.csrfToken);
 </script>
 
 <template>
-    <AuthLayout :shared="shared" title="Log in" description="Enter your credentials to continue">
+    <AuthLayout :shared="shared" title="Reset password" description="Choose a new password for your account">
         <FormAlert :message="form.errorFor('form')" />
 
         <form class="flex flex-col gap-4" @submit.prevent="submit">
@@ -26,38 +33,37 @@ const submit = () => form.submit(props.shared.api.login, props.shared.csrfToken)
                 type="email"
                 autocomplete="email"
                 required
-                autofocus
                 :error="form.errorFor('email')"
             />
 
             <FormField
                 id="password"
                 v-model="form.data.password"
-                label="Password"
+                label="New password"
                 type="password"
-                autocomplete="current-password"
+                autocomplete="new-password"
                 required
+                autofocus
                 :error="form.errorFor('password')"
             />
 
-            <label class="flex items-center gap-2 text-sm text-[#706f6c] dark:text-[#A1A09A]">
-                <input
-                    v-model="form.data.remember"
-                    type="checkbox"
-                    class="rounded-sm border-[#19140035] dark:border-[#3E3E3A]"
-                >
-                Remember me
-            </label>
+            <FormField
+                id="password_confirmation"
+                v-model="form.data.password_confirmation"
+                label="Confirm new password"
+                type="password"
+                autocomplete="new-password"
+                required
+                :error="form.errorFor('password_confirmation')"
+            />
 
             <SubmitButton :processing="form.processing">
-                {{ form.processing ? 'Logging in…' : 'Log in' }}
+                {{ form.processing ? 'Resetting…' : 'Reset password' }}
             </SubmitButton>
         </form>
 
         <template #footer>
-            <a class="underline underline-offset-4" :href="shared.routes.passwordRequest">Forgot your password?</a>
-            <span class="mx-2">·</span>
-            <a class="underline underline-offset-4" :href="shared.routes.register">Create an account</a>
+            <a class="underline underline-offset-4" :href="shared.routes.login">Back to log in</a>
         </template>
     </AuthLayout>
 </template>

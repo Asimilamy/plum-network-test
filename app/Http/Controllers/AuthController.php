@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\User;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Contracts\View\View;
-use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 
@@ -25,7 +29,7 @@ class AuthController extends Controller
     /**
      * Authenticate the user and start a new session.
      */
-    public function login(Request $request): RedirectResponse
+    public function login(Request $request): JsonResponse
     {
         $credentials = $request->validate([
             'email' => ['required', 'string', 'email'],
@@ -44,7 +48,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        return response()->json(['redirect' => route('dashboard')]);
     }
 
     /**
@@ -58,7 +62,7 @@ class AuthController extends Controller
     /**
      * Register a new user and log them in.
      */
-    public function register(Request $request): RedirectResponse
+    public function register(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -66,7 +70,8 @@ class AuthController extends Controller
             'password' => ['required', 'confirmed', PasswordRule::defaults()],
         ]);
 
-        $user = User::create($validated);
+        // Self-service registration always produces a standard user.
+        $user = User::create([...$validated, 'role' => UserRole::StandardUser]);
 
         event(new Registered($user));
 
@@ -74,7 +79,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard');
+        return response()->json(['redirect' => route('dashboard')], 201);
     }
 
     /**
@@ -88,7 +93,7 @@ class AuthController extends Controller
     /**
      * Email a password reset link to the given address.
      */
-    public function sendResetLink(Request $request): RedirectResponse
+    public function sendResetLink(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'email' => ['required', 'string', 'email'],
@@ -102,19 +107,64 @@ class AuthController extends Controller
             ]);
         }
 
-        return back()->with('status', __($status));
+        return response()->json(['status' => __($status)]);
+    }
+
+    /**
+     * Show the reset password page for the emailed token.
+     */
+    public function showResetPassword(Request $request, string $token): View
+    {
+        return $this->page('ResetPassword', [
+            'token' => $token,
+            'email' => $request->string('email')->toString(),
+        ]);
+    }
+
+    /**
+     * Set a new password from an emailed reset token.
+     */
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'string', 'email'],
+            'password' => ['required', 'confirmed', PasswordRule::defaults()],
+        ]);
+
+        $status = Password::reset($validated, function (User $user, string $password): void {
+            $user->forceFill([
+                'password' => Hash::make($password),
+                'remember_token' => Str::random(60),
+            ])->save();
+
+            event(new PasswordReset($user));
+        });
+
+        if ($status !== Password::PASSWORD_RESET) {
+            throw ValidationException::withMessages([
+                'email' => __($status),
+            ]);
+        }
+
+        return response()->json([
+            'status' => __($status),
+            'redirect' => route('login'),
+        ]);
     }
 
     /**
      * Log the user out and invalidate their session.
      */
-    public function logout(Request $request): RedirectResponse
+    public function logout(Request $request): JsonResponse
     {
-        Auth::logout();
+        // `auth:sanctum` makes the sanctum guard the default, so name the
+        // session guard that actually holds the login.
+        Auth::guard('web')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        return response()->json(['redirect' => route('login')]);
     }
 }

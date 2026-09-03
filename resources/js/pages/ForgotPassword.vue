@@ -1,42 +1,43 @@
 <script setup>
-import { ref } from 'vue';
 import AuthLayout from '../layouts/Auth/main.vue';
+import FormAlert from '../components/FormAlert.vue';
 import FormField from '../components/FormField.vue';
 import SubmitButton from '../components/SubmitButton.vue';
+import { useForm } from '../lib/api';
 
 const props = defineProps({
     shared: { type: Object, required: true },
 });
 
-const email = ref(props.shared.old?.email ?? '');
+const form = useForm({ email: '' });
 
-const errorFor = (field) => props.shared.errors[field]?.[0] ?? '';
+const submit = () => form.submit(props.shared.api.passwordEmail, props.shared.csrfToken);
 </script>
 
 <template>
     <AuthLayout
+        :shared="shared"
         title="Forgot password"
         description="Enter your email and we'll send you a password reset link"
     >
-        <p v-if="shared.status" class="mb-4 text-sm text-green-600 dark:text-green-400">
-            {{ shared.status }}
-        </p>
+        <FormAlert :message="form.status" variant="success" />
+        <FormAlert :message="form.errorFor('form')" />
 
-        <form class="flex flex-col gap-4" :action="shared.routes.passwordEmail" method="POST">
-            <input type="hidden" name="_token" :value="shared.csrfToken">
-
+        <form class="flex flex-col gap-4" @submit.prevent="submit">
             <FormField
                 id="email"
-                v-model="email"
+                v-model="form.data.email"
                 label="Email"
                 type="email"
                 autocomplete="email"
                 required
                 autofocus
-                :error="errorFor('email')"
+                :error="form.errorFor('email')"
             />
 
-            <SubmitButton>Email password reset link</SubmitButton>
+            <SubmitButton :processing="form.processing">
+                {{ form.processing ? 'Sending…' : 'Email password reset link' }}
+            </SubmitButton>
         </form>
 
         <template #footer>

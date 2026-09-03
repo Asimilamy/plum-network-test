@@ -3,7 +3,6 @@ import AppHeader from '../../components/AppHeader.vue';
 
 defineProps({
     shared: { type: Object, required: true },
-    title: { type: String, default: '' },
 });
 </script>
 
@@ -11,8 +10,7 @@ defineProps({
     <div class="min-h-screen bg-[#FDFDFC] text-[#1b1b18] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]">
         <AppHeader :shared="shared" />
 
-        <main class="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pt-22 pb-8">
-            <h1 v-if="title" class="text-xl font-medium">{{ title }}</h1>
+        <main class="mx-auto w-full max-w-6xl px-6 pt-16">
             <slot />
         </main>
     </div>

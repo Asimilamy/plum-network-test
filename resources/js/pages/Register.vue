@@ -1,67 +1,72 @@
 <script setup>
-import { ref } from 'vue';
 import AuthLayout from '../layouts/Auth/main.vue';
+import FormAlert from '../components/FormAlert.vue';
 import FormField from '../components/FormField.vue';
 import SubmitButton from '../components/SubmitButton.vue';
+import { useForm } from '../lib/api';
 
 const props = defineProps({
     shared: { type: Object, required: true },
 });
 
-const name = ref(props.shared.old?.name ?? '');
-const email = ref(props.shared.old?.email ?? '');
-const password = ref('');
-const passwordConfirmation = ref('');
+const form = useForm({
+    name: '',
+    email: '',
+    password: '',
+    password_confirmation: '',
+});
 
-const errorFor = (field) => props.shared.errors[field]?.[0] ?? '';
+const submit = () => form.submit(props.shared.api.register, props.shared.csrfToken);
 </script>
 
 <template>
-    <AuthLayout title="Create an account" description="Register to get started">
-        <form class="flex flex-col gap-4" :action="shared.routes.register" method="POST">
-            <input type="hidden" name="_token" :value="shared.csrfToken">
+    <AuthLayout :shared="shared" title="Create an account" description="Register to get started">
+        <FormAlert :message="form.errorFor('form')" />
 
+        <form class="flex flex-col gap-4" @submit.prevent="submit">
             <FormField
                 id="name"
-                v-model="name"
+                v-model="form.data.name"
                 label="Name"
                 autocomplete="name"
                 required
                 autofocus
-                :error="errorFor('name')"
+                :error="form.errorFor('name')"
             />
 
             <FormField
                 id="email"
-                v-model="email"
+                v-model="form.data.email"
                 label="Email"
                 type="email"
                 autocomplete="email"
                 required
-                :error="errorFor('email')"
+                :error="form.errorFor('email')"
             />
 
             <FormField
                 id="password"
-                v-model="password"
+                v-model="form.data.password"
                 label="Password"
                 type="password"
                 autocomplete="new-password"
                 required
-                :error="errorFor('password')"
+                :error="form.errorFor('password')"
             />
 
             <FormField
                 id="password_confirmation"
-                v-model="passwordConfirmation"
+                v-model="form.data.password_confirmation"
                 label="Confirm password"
                 type="password"
                 autocomplete="new-password"
                 required
-                :error="errorFor('password_confirmation')"
+                :error="form.errorFor('password_confirmation')"
             />
 
-            <SubmitButton>Register</SubmitButton>
+            <SubmitButton :processing="form.processing">
+                {{ form.processing ? 'Creating account…' : 'Register' }}
+            </SubmitButton>
         </form>
 
         <template #footer>
